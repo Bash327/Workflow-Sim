@@ -1,0 +1,2021 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SafeChart — Nurse Workflow Sim (v13)</title>
+<style>
+:root{ --bg:#f5f7fb; --card:#ffffff; --muted:#64748b; --accent:#0ea5e9; --accent-dark:#0284c7; --danger:#ef4444; --warn:#f59e0b; --purple:#8b5cf6; --success:#10b981; --shadow:0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); font-family:Inter, system-ui, sans-serif; }
+*{box-sizing:border-box} body{margin:0; background:var(--bg); color:#0f172a; height:100vh; display:flex; flex-direction:column;}
+
+/* Header */
+.header{display:flex; align-items:center; justify-content:space-between; padding:0 24px; height:60px; background:var(--card); box-shadow:var(--shadow); z-index:50;}
+/* NEW: Brand with Icon */
+.brand{font-weight:800; color:var(--accent-dark); font-size:18px; letter-spacing:-0.5px; display:flex; align-items:center;}
+.brand-icon{margin-right:8px;}
+.nav{display:flex; gap:10px;}
+.nav button{padding:8px 14px; border-radius:6px; border:1px solid #e2e8f0; background:#fff; cursor:pointer; font-weight:500; color:var(--muted); transition:0.2s;}
+.nav button:hover{background:#f1f5f9;}
+.nav button.active{background:var(--accent); color:#fff; border-color:var(--accent);}
+
+/* Layout */
+.container{padding:24px; max-width:1400px; margin:0 auto; width:100%; flex:1; overflow-y:auto;}
+.card{background:var(--card); padding:20px; border-radius:12px; box-shadow:var(--shadow); margin-bottom:16px; border:1px solid #e2e8f0;}
+h3{margin:0 0 10px 0; font-size:18px;} h4{margin:0 0 10px 0; font-size:15px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px;}
+
+/* Directory & Lists */
+.unit-list{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px;}
+.patient-row{display:flex; align-items:center; justify-content:space-between; padding:12px; border-radius:8px; border:1px solid #f1f5f9; transition:0.1s;}
+.patient-row:hover{background:#f8fafc;}
+.patient-left{display:flex; align-items:center; gap:12px;}
+.avatar{width:40px; height:40px; border-radius:50%; background:#e0f2fe; color:var(--accent-dark); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px;}
+
+/* Flags & Badges */
+.small-flag{padding:6px 10px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; border:1px solid #e2e8f0; background:white;}
+.flag-urgency{background:#fef2f2;color:var(--danger); border-color:#fee2e2;}
+.flag-allergy{background:#fff1f2;color:var(--danger); border-color:#fecdd3;}
+.flag-dnr{background:#f3e8ff; color:var(--purple); border-color:#d8b4fe;}
+.badge{background:var(--danger);color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;}
+.badge-new{background:var(--accent); color:#fff; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700;}
+/* NEW: Recently Accessed Flag */
+.flag-accessed{background:#dcfce7; color:var(--success); border-color:#bbf7d0;}
+
+/* Assignments Grid */
+.assigned-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(350px,1fr)); gap:16px;}
+.assigned-card{padding:16px; border-radius:12px; background:#fff; border:1px solid #e2e8f0; box-shadow:var(--shadow); transition:0.2s; position:relative;}
+.assigned-card:hover{transform:translateY(-2px); border-color:var(--accent);}
+
+.assigned-card .top-row{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;}
+.vitals-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:13px; background:#f8fafc; padding:8px; border-radius:6px;}
+
+/* Chart View */
+.chart-container{display:grid; grid-template-columns:360px 1fr; gap:24px; align-items:start;} 
+.chart-sidebar{display:flex; flex-direction:column; gap:16px;}
+.sidebar-box{background:var(--card); padding:16px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:var(--shadow);}
+.stat-flash{animation:flash 1.5s ease-in-out infinite;}
+@keyframes flash{0%{box-shadow:0 0 0 0 rgba(239,68,68,0.4);} 50%{box-shadow:0 0 0 6px rgba(239,68,68,0.1);} 100%{box-shadow:0 0 0 0 rgba(239,68,68,0);}}
+
+/* Tabs (MODIFIED TO STACK) */
+.tabs-nav{
+    display:grid; /* Change to grid for stacking/wrapping */
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); /* Allow wrapping and ensure minimum width */
+    gap:6px; 
+    margin-bottom:16px; 
+    border-bottom:1px solid #e2e8f0; 
+    padding-bottom:12px; 
+    overflow-x: hidden; /* Prevent horizontal scrolling */
+    white-space: normal; /* Allow wrapping */
+}
+.tab-btn{
+    text-align: center;
+    padding:8px 16px; 
+    border:none; 
+    background:transparent; 
+    font-weight:600; 
+    color:var(--muted); 
+    cursor:pointer; 
+    border-radius:6px; 
+    transition:0.1s;
+}
+.tab-btn:hover{background:#f1f5f9; color:#0f172a;}
+.tab-btn.active{background:#e0f2fe; color:var(--accent-dark);}
+
+/* IV Pump Visuals */
+.iv-pole-container { display:flex; gap:20px; justify-content:center; padding:20px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0; }
+.iv-channel { display:flex; flex-direction:column; align-items:center; width:120px; position:relative; }
+.iv-bag { width:60px; height:80px; background:#fff; border:2px solid #cbd5e1; border-radius:10px 10px 30px 30px; display:flex; align-items:center; justify-content:center; font-size:11px; text-align:center; padding:2px; box-shadow:0 2px 4px rgba(0,0,0,0.05); margin-bottom:5px; font-weight:700; z-index:2; }
+.iv-bag.piggy { margin-top: -20px; border-color:var(--purple); background:#fdf4ff; }
+.iv-line { width:4px; height:60px; background:#cbd5e1; margin:0 auto; z-index:1; }
+.iv-pump-box { width:100%; padding:10px; background:#1e293b; color:#0ea5e9; border-radius:6px; font-family:monospace; text-align:center; font-size:14px; box-shadow:0 4px 6px rgba(0,0,0,0.1); z-index:3; }
+.compat-indicator { margin-top:10px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:5px; }
+.compat-ok { color:var(--success); } .compat-bad { color:var(--danger); }
+/* Flash for Incompatibility/Rate High */
+@keyframes flash-bg {
+    0% { background-color: var(--danger); }
+    100% { background-color: #fee2e2; }
+}
+.flash-danger {
+    animation: flash-bg 0.5s infinite alternate;
+}
+
+/* Lab Tables */
+.lab-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:15px; }
+.lab-box { border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; }
+.lab-head { background:#f1f5f9; padding:8px; font-weight:700; border-bottom:1px solid #e2e8f0; font-size:13px; }
+.lab-row { display:flex; justify-content:space-between; padding:6px 10px; border-bottom:1px dashed #f1f5f9; font-size:13px; }
+.lab-row:last-child { border-bottom:none; }
+.abnormal { color:var(--danger); font-weight:700; }
+
+/* Modal */
+.modal-overlay{position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; place-items:center; z-index:100;}
+.modal{background:white; padding:24px; border-radius:16px; width:500px; max-width:90%; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); border:1px solid #e2e8f0; max-height:90vh; overflow-y:auto;}
+.modal-header{display:flex; justify-content:space-between; margin-bottom:16px;}
+.input-scan{width:100%; padding:12px; border:2px solid #e2e8f0; border-radius:8px; font-size:16px; margin:8px 0;}
+.input-scan:focus{border-color:var(--accent); outline:none;}
+.modal-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:20px;}
+.btn-primary{background:var(--accent); color:white; border:none; padding:10px 20px; border-radius:8px; font-weight:600; cursor:pointer;}
+.btn-danger{background:var(--danger); color:white; border:none; padding:10px 20px; border-radius:8px; font-weight:600; cursor:pointer;}
+
+.hidden{display:none !important;}
+.meta{font-size:13px; color:var(--muted);}
+
+/* Patient figure specific */
+.figure-wrap{position:relative; width:100%; height:320px; background:#fbfdff; border-radius:8px; display:flex; align-items:center; justify-content:center; border:1px solid #e6f2fb;} 
+.figure-svg{max-width:220px; height:100%;}
+.figure-legend{display:flex; gap:8px; margin-top:8px; align-items:center; font-size:12px;}
+.marker { stroke: #fff; stroke-width:1.5px; cursor:default; }
+.marker.iv { fill:#0ea5e9; }      /* blue */
+.marker.drain { fill:#f59e0b; }   /* yellow */
+.marker.wound { fill:#ef4444; }   /* red */
+.figure-list { margin-top:8px; font-size:13px; max-height:150px; overflow:auto; }
+.figure-item { display:flex; justify-content:space-between; gap:8px; padding:6px; border-bottom:1px dashed #f1f5f9; }
+.small-x { background:#eee; padding:4px 6px; border-radius:6px; cursor:pointer; font-weight:700; }
+
+/* Responsive */
+@media (max-width: 800px) {
+    .chart-container {
+        grid-template-columns: 1fr; /* Stack sidebar and main content */
+    }
+    .iv-pole-container {
+        flex-direction: column; /* Stack IV channels vertically */
+        align-items: center;
+    }
+    .iv-channel {
+        width: 100%;
+        margin-bottom: 20px;
+    }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+    <div class="brand">
+        <svg class="brand-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="#EF4444"/>
+            <rect x="10.5" y="8" width="3" height="4" rx="1.5" fill="white"/>
+            <path d="M14.25 7.5H9.75C8.92 7.5 8.25 6.83 8.25 6V5.25C8.25 4.42 8.92 3.75 8.92 5.25V6C15.75 6.83 15.08 7.5 14.25 7.5Z" stroke="white" stroke-width="1.5" fill="none"/>
+        </svg>
+        SafeChart
+    </div>
+    <div class="nav">
+        <button id="navDir" class="active">Patient Directory</button>
+        <button id="navAssign">My Assignments</button>
+        <button id="btnPersist">Storage: ON</button>
+    </div>
+</div>
+
+<div class="container" id="pageDirectory">
+    <div class="card">
+        <h3>Patient Directory</h3>
+        <div class="meta">Select patients to add to your assignment load for this shift.</div>
+        <div style="margin-top:16px; display:flex; gap:10px;">
+            <button class="small-flag" onclick="dirSelectAll()">Select All</button>
+            <button class="small-flag" onclick="dirClear()">Clear</button>
+            <button class="btn-primary" onclick="dirAddToMyList()">Add Selected to My List</button>
+            <div style="margin-left:auto; align-self:center;" class="meta">Selected: <span id="selCount">0</span></div>
+        </div>
+    </div>
+    <div id="dirList" class="unit-list"></div>
+</div>
+
+<div class="container hidden" id="pageAssignments">
+    <div class="card" style="border-left:4px solid var(--danger); display:none;" id="globalStatAlert">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div><strong>STAT ORDERS PENDING</strong><br><span class="meta">You have unacknowledged urgent orders.</span></div>
+            <button class="small-flag" onclick="ackAllStats()">Acknowledge All</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:start;">
+            <div>
+                <h3>My Assignments</h3>
+                <div class="meta">Monitor vitals and manage workflow.</div>
+            </div>
+            <div style="display:flex; gap:8px;">
+                 <button class="small-flag" onclick="toggleHistory()">📜 View History</button>
+                 <button class="small-flag" style="color:var(--danger); border-color:var(--danger);" onclick="clearAssignments()">× Clear List</button>
+            </div>
+        </div>
+        
+        <div id="historySection" class="hidden" style="margin-top:15px; padding-top:15px; border-top:1px solid #e2e8f0;">
+            <h4>Past Patient History</h4>
+            <div id="historyList" class="meta">No history yet.</div>
+        </div>
+    </div>
+    
+    <div id="assignmentGrid" class="assigned-grid"></div>
+</div>
+
+<div class="container hidden" id="pageChart">
+    <div style="margin-bottom:16px;">
+        <button class="small-flag" onclick="showPage('assignments')">← Back to Assignments</button>
+    </div>
+
+    <div class="chart-container">
+        <div class="chart-sidebar">
+            <div class="sidebar-box">
+                <div style="font-size:20px; font-weight:800;" id="ptName">--</div>
+                <div class="meta" id="ptRoom">--</div>
+                <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:8px;">
+                    <div id="ptAllergy" class="badge hidden"></div>
+                    <div id="ptCode" class="badge" style="background:var(--purple);"></div>
+                </div>
+            </div>
+
+            <div class="sidebar-box" id="sbVitals">
+                <h4>Live Vitals</h4>
+                <div style="font-size:14px; line-height:1.6;">
+                    HR: <strong id="sbHR">--</strong><br>
+                    BP: <strong id="sbBP">--</strong><br>
+                    SpO2: <strong id="sbO2">--</strong><br>
+                    RR: <strong id="sbRR">--</strong>
+                </div>
+            </div>
+
+            <div class="sidebar-box" id="ptFigureBox">
+                <h4>Patient Figure</h4>
+                <div class="figure-wrap" id="figureWrap">
+                    <svg class="figure-svg" viewBox="0 0 120 280" id="bodySvg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+                        <g id="silhouette" fill="#f8fafc" stroke="#e6f2fb" stroke-width="2">
+                            <ellipse cx="60" cy="18" rx="18" ry="18"></ellipse> <rect x="42" y="36" width="36" height="48" rx="6"></rect> <rect x="38" y="84" width="44" height="12" rx="4"></rect> <rect x="34" y="96" width="52" height="58" rx="6"></rect> <rect x="10" y="42" width="18" height="54" rx="8" transform="rotate(-12 19 69)"></rect>
+                            <rect x="92" y="42" width="18" height="54" rx="8" transform="rotate(12 101 69)"></rect>
+                            <rect x="44" y="156" width="14" height="92" rx="8"></rect>
+                            <rect x="62" y="156" width="14" height="92" rx="8"></rect>
+                        </g>
+                        <g id="markers"></g>
+                    </svg>
+                </div>
+                <div class="figure-legend">
+                    <div style="display:flex; gap:6px; align-items:center;"><div style="width:12px;height:12px;background:#0ea5e9;border-radius:3px"></div> IV</div>
+                    <div style="display:flex; gap:6px; align-items:center;"><div style="width:12px;height:12px;background:#f59e0b;border-radius:3px"></div> Drain</div>
+                    <div style="display:flex; gap:6px; align-items:center;"><div style="width:12px;height:12px;background:#ef4444;border-radius:3px"></div> Wound</div>
+                </div>
+                <div class="figure-list" id="figureList"></div>
+                <div style="display:flex; gap:8px; margin-top:8px;">
+                    <button class="small-flag" onclick="openFigureModal('iv')">+ IV</button>
+                    <button class="small-flag" onclick="openFigureModal('drain')">+ Tube</button>
+                    <button class="small-flag" onclick="openFigureModal('wound')">+ Wound</button>
+                </div>
+            </div>
+
+            <div class="sidebar-box hidden" id="sbStat">
+                <h4 style="color:var(--danger)">Active STAT</h4>
+                <div id="sbStatList" class="meta"></div>
+            </div>
+
+            <div class="sidebar-box">
+                <h4>Scanner</h4>
+                <button class="btn-primary" style="width:100%" onclick="openMedModal()">Simulate Scan</button>
+                <button class="small-flag" style="width:100%; margin-top:8px; color:var(--danger); border-color:var(--danger);" onclick="createStatOrder()">+ Create STAT Order</button>
+            </div>
+        </div>
+
+        <div class="card" style="min-height:500px;">
+            <div class="tabs-nav">
+                <button class="tab-btn active" onclick="renderTab('orders')">Orders</button>
+                <button class="tab-btn" onclick="renderTab('meds')">MAR</button>
+                <button class="tab-btn" onclick="renderTab('vitals')">Vitals</button>
+                <button class="tab-btn" onclick="renderTab('assessment')">Assessment</button>
+                <button class="tab-btn" onclick="renderTab('history')">Doc History</button>
+                <button class="tab-btn" onclick="renderTab('labs')">Labs</button>
+                <button class="tab-btn" onclick="renderTab('iv')">IV/Pump</button>
+                <button class="tab-btn" onclick="renderTab('pharmacy')">Pharmacy</button> 
+                <button class="tab-btn" onclick="renderTab('rad')">Radiology</button>
+                <button class="tab-btn" onclick="renderTab('discharge')">Discharge</button>
+                <button class="tab-btn" onclick="renderTab('notes')">Notes</button>
+            </div>
+            <div id="tabContent"></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="medModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Medication Administration</h3>
+            <button onclick="closeModal()" style="border:none; background:none; font-size:20px; cursor:pointer;">&times;</button>
+        </div>
+        <div style="background:#f8fafc; padding:12px; border-radius:8px; margin-bottom:12px;">
+            <div class="meta">Patient: <strong id="modalPtName">--</strong></div>
+            <div class="meta" id="modalAllergyWarn"></div>
+            <div id="modalVitalsDisplay" style="margin-top:8px; font-weight:600; font-size:14px; color:var(--accent-dark);">
+                LIVE VITALS: HR <span id="modalHR">--</span> | BP <span id="modalBP">--</span> | SpO2 <span id="modalO2">--</span> | RR <span id="modalRR">--</span>
+            </div>
+            </div>
+        <label style="font-size:13px; font-weight:600;">Scan Barcode / Enter Med Code:</label>
+        <input type="text" id="scanInput" class="input-scan" placeholder="e.g. Rx-866414" autocomplete="off">
+        <div id="scanResult" class="hidden" style="padding:12px; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:12px;">
+            <div id="hrAlert" class="badge" style="background:var(--danger); display:none; margin-bottom:10px;">
+                ALERT: Parameter Violation / Pending Verification
+            </div>
+            <div style="font-weight:700;" id="resName"></div>
+            <div class="meta" id="resDose"></div>
+            <div class="badge" id="resStat" style="display:none; margin-top:5px;">STAT</div>
+        </div>
+        <div class="modal-actions">
+            <button class="small-flag" onclick="closeModal()">Cancel</button>
+            <button class="btn-danger hidden" id="overrideButton" onclick="overrideAdmin()">Override & Administer</button>
+            <button class="btn-primary" id="btnAdminister" disabled onclick="confirmAdminister()">Administer</button>
+        </div>
+        <div style="margin-top:20px; border-top:1px solid #eee; padding-top:10px;">
+            <div class="meta">Cheat Codes: Rx-866414 (Metoprolol), Rx-074601 (Morphine STAT)</div>
+            <button class="small-flag" style="margin-top:5px;" onclick="autoFillScan()">Auto-Scan Due Med</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="figureModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="figureModalTitle">Add Item</h3>
+            <button onclick="closeFigureModal()" style="border:none; background:none; font-size:20px; cursor:pointer;">&times;</button>
+        </div>
+        <div style="margin-bottom:8px;" class="meta">Document IV access, drains/tubes, or wounds.</div>
+        <label style="font-weight:700; display:block; margin-top:8px;">Type</label>
+        <select id="figureType" class="input-scan" disabled>
+            <option value="iv">IV Access</option>
+            <option value="drain">Drain / Tube</option>
+            <option value="wound">Wound</option>
+        </select>
+        <label style="font-weight:700; display:block; margin-top:8px;">Location</label>
+        <select id="figureLocation" class="input-scan">
+            <option value="head">Head</option><option value="neck">Neck</option><option value="chest">Chest</option>
+            <option value="upper_abdomen">Upper abdomen</option><option value="lower_abdomen">Lower abdomen</option>
+            <option value="left_arm">Left arm</option><option value="right_arm">Right arm</option>
+            <option value="left_leg">Left leg</option><option value="right_leg">Right leg</option><option value="back">Back</option>
+        </select>
+        <label style="font-weight:700; display:block; margin-top:8px;">Label / Notes</label>
+        <input id="figureNotes" class="input-scan" placeholder="e.g. PICC line, JP drain" />
+        <div class="modal-actions">
+            <button class="small-flag" onclick="closeFigureModal()">Cancel</button>
+            <button class="btn-primary" id="figureSaveBtn" onclick="saveFigureItem()">Save</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="orderModal">
+    <div class="modal" data-edit-id="">
+        <div class="modal-header">
+            <h3>Add New Order</h3>
+            <button onclick="closeOrderModal()" style="border:none; background:none; font-size:20px; cursor:pointer;">&times;</button>
+        </div>
+        
+        <label style="font-weight:700;">Order Type</label>
+        <select id="ordType" class="input-scan" onchange="updateOrderForm()">
+            <option value="Medication">Medication</option>
+            <option value="Labs">Labs / Bloodwork</option>
+            <option value="Vitals">Vitals / Monitoring</option>
+            <option value="Other">Diet / Activity / Other</option>
+        </select>
+
+        <div id="ordFieldsMed">
+            <label style="font-weight:700;">Medication Name</label>
+            <input id="ordMedName" class="input-scan" placeholder="e.g. Lisinopril">
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1"><label style="font-weight:700;">Dose</label><input id="ordMedDose" class="input-scan" placeholder="e.g. 10 mg"></div>
+                <div style="flex:1"><label style="font-weight:700;">Route</label><select id="ordMedRoute" class="input-scan"><option>PO</option><option>IV</option><option>IVP</option><option>IM</option></select></div>
+            </div>
+            <label style="font-weight:700;">Frequency</label><input id="ordMedFreq" class="input-scan" placeholder="e.g. Q12H">
+        </div>
+
+        <div id="ordFieldsLab" class="hidden">
+            <label style="font-weight:700;">Test Name</label>
+            <input id="ordLabName" class="input-scan" placeholder="e.g. CBC, CMP">
+            <label style="font-weight:700;">Priority & Timing</label>
+            <select id="ordLabTiming" class="input-scan" onchange="toggleLabTime()">
+                <option value="Routine - Next AM">Routine - Next AM Collection</option>
+                <option value="Timed">Timed (Specific Time)</option>
+                <option value="STAT">STAT (Emergency)</option>
+            </select>
+            <div id="ordLabTimeWrap" class="hidden">
+                <label style="font-weight:700;">Requested Collection Time</label>
+                <input type="time" id="ordLabSpecificTime" class="input-scan">
+            </div>
+        </div>
+
+        <div id="ordFieldsVital" class="hidden">
+            <label style="font-weight:700;">Order Details</label><input id="ordVitalName" class="input-scan" placeholder="e.g. Orthostatic BP">
+            <label style="font-weight:700;">Frequency</label><select id="ordVitalFreq" class="input-scan"><option>Q4H</option><option>QShift</option><option>Daily</option></select>
+        </div>
+
+        <div id="ordFieldsOther" class="hidden">
+            <label style="font-weight:700;">Description</label><input id="ordOtherDesc" class="input-scan" placeholder="e.g. NPO past midnight">
+        </div>
+
+        <div class="modal-actions">
+            <button class="small-flag" onclick="closeOrderModal()">Cancel</button>
+            <button class="btn-primary" onclick="submitNewOrder()">Sign Order</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/* --- Data & State --- */
+const STORAGE_KEY = 'charting30_db_v13'; // Bumping version to v13
+const CURRENT_NURSE = "RN J. Smith"; 
+
+// FHIR-style codes and naming (Includes new route/dose for accurate MAR)
+const medDB = {
+    "Rx-866414": {name:"Metoprolol", dose:"5 mg", route:"IVP", freq:12, stat:false, pharmacyStatus: 'Verified'}, // Q12H
+    "Rx-238493": {name:"Pantoprazole", dose:"40 mg", route:"PO", freq:24, stat:false, pharmacyStatus: 'Verified'}, // Daily
+    "Rx-104980": {name:"Acetaminophen", dose:"650 mg", route:"PO", freq:6, stat:false, pharmacyStatus: 'Verified'}, // Q6H
+    "Rx-074601": {name:"Morphine", dose:"2 mg", route:"IVP", freq:0, stat:true, pharmacyStatus: 'Verified'}, // STAT
+    "Rx-555555": {name:"Cialis", dose:"10 mg", route:"PO", freq:24, stat:false, pharmacyStatus: 'Disapproved', reason: 'Non-formulary/Insurance Denial'} // New Disapproved med
+};
+
+let state = {
+    patients: [], assignments: [], history: [], flowsheets: {}, notes: {}, assessments: {}
+};
+
+let currentPt = null;
+let currentTab = 'orders';
+let figureModalMode = null; 
+
+window.onload = function(){
+    loadState();
+    if(!state.patients.length) seedPatients();
+    renderDirectory();
+    renderAssignments();
+    setInterval(simVitals, 4000); 
+    
+    document.getElementById('scanInput').addEventListener('keyup', (e)=>{ if(e.key === 'Enter') checkMedScan(); });
+    setInterval(saveState, 5000); 
+};
+
+/* --- Nav --- */
+document.getElementById('navDir').onclick = () => showPage('directory');
+document.getElementById('navAssign').onclick = () => showPage('assignments');
+
+function showPage(page){
+    document.querySelectorAll('.container').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.nav button').forEach(el => el.classList.remove('active'));
+    
+    if(page === 'directory'){
+        document.getElementById('pageDirectory').classList.remove('hidden');
+        document.getElementById('navDir').classList.add('active');
+    } else if (page === 'assignments'){
+        document.getElementById('pageAssignments').classList.remove('hidden');
+        document.getElementById('navAssign').classList.add('active');
+        renderAssignments();
+    } else if (page === 'chart'){
+        document.getElementById('pageChart').classList.remove('hidden');
+    }
+}
+
+/* --- Directory & Seeding --- */
+function getNextHour(h){ 
+    const d = new Date(); 
+    const now = d.getHours();
+    // If the scheduled hour (h) is past, schedule it for the next day
+    if(now >= h) {
+        d.setDate(d.getDate() + 1);
+    }
+    d.setHours(h,0,0,0);
+    return d.toISOString();
+}
+
+function seedPatients(){
+    const units = ['ICU', 'PCU', 'M/S'];
+    const names = ['A. Johnson', 'B. Davis', 'C. Lee', 'D. Miller', 'E. White', 'F. Hall'];
+    
+    // Mock lab results
+    const labs = {
+        'CMP': [
+            {test:'Glucose', result:110, normal:'70-100', abnormal:true},
+            {test:'Na', result:138, normal:'135-145'},
+            {test:'K', result:4.1, normal:'3.5-5.0'},
+            {test:'BUN', result:25, normal:'7-20', abnormal:true},
+            {test:'Creatinine', result:1.5, normal:'0.6-1.2', abnormal:true},
+        ],
+        'CBC': [
+            {test:'WBC', result:14.2, normal:'4.5-11.0', abnormal:true},
+            {test:'Hgb', result:11.5, normal:'12.0-16.0'},
+            {test:'Plt', result:250, normal:'150-450'}
+        ]
+    };
+
+    // Mock imaging results
+    const imaging = [
+        {time: new Date(Date.now() - 48*3600000).toISOString(), modality: 'CXR', result: 'Mild pulmonary congestion. No acute infiltrate.'},
+        {time: new Date(Date.now() - 12*3600000).toISOString(), modality: 'CT Abdomen/Pelvis', result: 'Diverticulitis, acute, uncomplicated.'}
+    ];
+
+    // Mock orders
+    const orders = [
+        {id: 1, cat: 'Medication', txt: 'Lisinopril 10 mg PO Daily', status: 'Active', ordered: 'Dr. A. House', time: new Date(Date.now() - 3600000*24).toISOString(), reviewDate: new Date(Date.now() + 86400000).toISOString()},
+        {id: 2, cat: 'Labs', txt: 'CBC with diff - STAT', status: 'Pending', ordered: 'Dr. C. Cuddy', time: new Date().toISOString(), reviewDate: new Date(Date.now() + 86400000*7).toISOString()},
+        {id: 3, cat: 'Vitals', txt: 'Orthostatic BP - QShift', status: 'Active', ordered: 'Dr. C. Cuddy', time: new Date(Date.now() - 3600000*12).toISOString(), reviewDate: new Date(Date.now() + 86400000*7).toISOString()},
+        {id: 4, cat: 'Other', txt: 'NPO past midnight', status: 'Active', ordered: 'Dr. A. House', time: new Date(Date.now() - 3600000*6).toISOString(), reviewDate: new Date(Date.now() - 86400000).toISOString()}, // Overdue review
+    ];
+
+    // Medication Schedule Requests (MAR)
+    const medicationRequests = [
+        { time: getNextHour(9), code: "Rx-866414", status: 'due' }, // 9am Metoprolol
+        { time: getNextHour(21), code: "Rx-866414", status: 'due' }, // 9pm Metoprolol
+        { time: getNextHour(10), code: "Rx-238493", status: 'due' }, // 10am Pantoprazole
+        { time: getNextHour(12), code: "Rx-104980", status: 'due' }, // 12pm Acetaminophen
+        { time: getNextHour(0), code: "Rx-074601", status: 'stat' }, // STAT Morphine (Always "due" immediately)
+    ];
+
+    state.patients = names.map((n,i) => { 
+        const baseHR = 60 + Math.floor(Math.random()*40); 
+        // Fluid Therapy 
+        const fluidTherapy = { access: i%3===0 ? 'Central Line (R IJ)' : 'PIV (L Forearm)', primary: i===5 ? 'D5LR @ 400 mL/hr' : (i%2===0 ? 'NS @ 100 mL/hr' : 'LR @ 125 mL/hr'), primaryRate: i===5 ? 400 : (i%2===0 ? 100 : 125), piggyback: i===0 ? 'Vancomycin 1g' : '', ysite: i===0 ? 'Zosyn 3.375g' : '' }; 
+        // Observations
+        const observations = {hr:baseHR, bp:'120/80', spo2:98, rr:16}; 
+        const history = []; 
+        for(let t=0; t<4; t++) { 
+            history.push({ time: new Date(Date.now() - t*3600000).toISOString(), hr: baseHR + Math.floor(Math.random()*10 - 5), bp: `${110+Math.floor(Math.random()*20)}/${60+Math.floor(Math.random()*20)}`, spo2: 95+Math.floor(Math.random()*5), rr: 12+Math.floor(Math.random()*8), temp: (36.5 + Math.random()).toFixed(1) }); 
+        } 
+        // Medication Orders (Full List)
+        const medicationOrders = [
+            { code: "Rx-866414", frequency: "Q12H", schedule: [9, 21], verificationStatus: 'Verified' }, // 9am / 9pm
+            { code: "Rx-238493", frequency: "Daily", schedule: [10], verificationStatus: 'Verified' }, // 10am
+            { code: "Rx-104980", frequency: "Q6H PRN", schedule: [], verificationStatus: 'Verified' }, // PRN
+            { code: "Rx-074601", frequency: "STAT PRN", schedule: [], verificationStatus: 'Verified' }, // STAT PRN
+            { code: "Rx-555555", frequency: "Daily", schedule: [8], verificationStatus: 'Disapproved' } // Disapproved
+        ];
+
+        // Discharge Planning (NEW: homeCareStatus added)
+        const dischargePlanning = {
+            time: null,
+            ptStatus: i===3 ? 'Stable - Ready for Discharge' : 'Stable - Continued Care',
+            otStatus: 'Consult Scheduled',
+            ivLongTerm: i % 2 === 0 ? 'IV Pending' : 'No',
+            antibiotics: 'Discontinue',
+            painManagement: 'PO',
+            supplies: 'No',
+            tubeDrainRemoval: 'N/A',
+            dischargeReady: i===3 ? 'Yes (Needs Sign-off)' : 'No',
+            homeHealthNotes: '',
+            homeCareStatus: i===3 ? 'Home Health Agency (HHA)' : 'No Home Services Needed' 
+        };
+
+        // Pharmacy Info
+        const pharmacyInfo = {
+            preferred: i % 2 === 0 ? 'Walgreens #1234' : 'CVS Pharmacy',
+            approved: medicationOrders.filter(o => medDB[o.code] && medDB[o.code].pharmacyStatus === 'Verified').map(o => medDB[o.code].name),
+            disapproved: medicationOrders.filter(o => medDB[o.code] && medDB[o.code].pharmacyStatus === 'Disapproved').map(o => ({name: medDB[o.code].name, reason: medDB[o.code].reason || 'N/A'})),
+        };
+
+        return { 
+            id: i, name: n, unit: units[i%3], room: 100+i, 
+            allergy: i===0?'Penicillin':(i===3?'Latex':''), 
+            codeStatus: i===1 || i===4 ? 'DNR/DNI' : 'Full Code', 
+            observations: observations, 
+            vitalHistory: history,
+            fluidTherapy: fluidTherapy,
+            ivCompatAcknowledged: false, // Incompatibility Alarm acknowledged state
+            ivRateAcknowledged: false, // Rate Alarm acknowledged state
+            labs: labs, 
+            imaging: imaging, 
+            orders: orders,
+            safety: { fall: (i%2===0), dysphagia: (i===3), contact: (i===0) },
+            figure: { iv: [], drains: [], wounds: [] },
+            newOrders: i%2 !== 0,
+            medicationRequests: medicationRequests,
+            medicationOrders: medicationOrders,
+            dischargePlanning: dischargePlanning,
+            pharmacyInfo: pharmacyInfo,
+            lastAccessed: null, // Last accessed timestamp
+            pendingMedOrders: [] // NEW: Unverified medication orders
+        }; 
+    });
+    saveState();
+}
+
+function renderDirectory(){
+    const list = document.getElementById('dirList');
+    list.innerHTML = '';
+    state.patients.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'patient-row card';
+        div.innerHTML = `
+            <div class="patient-left">
+                <input type="checkbox" class="dir-check" data-id="${p.id}">
+                <div class="avatar">${p.name.substring(0,2)}</div>
+                <div>
+                    <strong>${p.name}</strong> (${p.unit})<br>
+                    <span class="meta">Rm ${p.room} - ${p.codeStatus}</span>
+                </div>
+            </div>
+            <div style="display:flex; gap:5px; align-items:center;">
+                ${p.allergy ? `<div class="small-flag flag-allergy">${p.allergy} Allergy</div>` : ''}
+                <div class="small-flag">O2: ${p.observations.spo2}%</div>
+            </div>
+        `;
+        list.appendChild(div);
+    });
+    updateSelectedCount();
+}
+
+function updateSelectedCount(){
+    const count = document.querySelectorAll('.dir-check:checked').length;
+    document.getElementById('selCount').innerText = count;
+}
+
+document.addEventListener('change', (e) => {
+    if(e.target.classList.contains('dir-check')) updateSelectedCount();
+});
+
+function dirSelectAll(){
+    document.querySelectorAll('.dir-check').forEach(c => c.checked = true);
+    updateSelectedCount();
+}
+function dirClear(){
+    document.querySelectorAll('.dir-check').forEach(c => c.checked = false);
+    updateSelectedCount();
+}
+function dirAddToMyList(){
+    const selectedIds = Array.from(document.querySelectorAll('.dir-check:checked')).map(c => parseInt(c.dataset.id));
+    
+    // Filter out patients already assigned
+    const newAssignments = state.patients.filter(p => 
+        selectedIds.includes(p.id) && !state.assignments.some(a => a.id === p.id)
+    );
+
+    if(newAssignments.length > 0){
+        state.assignments.push(...newAssignments);
+        saveState();
+        alert(`${newAssignments.length} patient(s) added to your assignments.`);
+        renderAssignments();
+        showPage('assignments');
+    } else {
+        alert("No new patients selected or all selected patients are already in your assignment list.");
+    }
+}
+
+/* --- Assignments --- */
+function openChart(id){
+    currentPt = state.assignments.find(p => p.id === id);
+    if(currentPt){
+        // Mark last accessed
+        currentPt.lastAccessed = new Date().toISOString();
+        saveState();
+        // Update basic info
+        document.getElementById('ptName').innerText = currentPt.name;
+        document.getElementById('ptRoom').innerText = `Rm ${currentPt.room} (${currentPt.unit})`;
+        
+        const allergyEl = document.getElementById('ptAllergy');
+        if(currentPt.allergy){
+            allergyEl.classList.remove('hidden');
+            allergyEl.innerText = `Allergy: ${currentPt.allergy}`;
+            allergyEl.style.background = 'var(--danger)';
+        } else {
+            allergyEl.classList.add('hidden');
+        }
+        document.getElementById('ptCode').innerText = currentPt.codeStatus;
+        if(currentPt.codeStatus.includes('DNR')) {
+             document.getElementById('ptCode').style.background = 'var(--purple)';
+        } else {
+             document.getElementById('ptCode').style.background = 'var(--accent)';
+        }
+
+
+        updateChartVitals();
+        renderFigure();
+        renderStatSidebar();
+        renderTab(currentTab);
+        showPage('chart');
+        
+        // Clear new orders flag after opening chart
+        currentPt.newOrders = false;
+        renderAssignments(); 
+    }
+}
+
+function renderStatSidebar(){
+    // Include the new 'Pending Verification' status in the STAT alert check if it's a med STAT
+    const stats = currentPt.orders.filter(o => 
+        (o.status === 'Pending' && o.txt.includes('STAT')) || 
+        (o.cat === 'Medication' && o.status === 'Pending Verification')
+    );
+
+    const sbStatBox = document.getElementById('sbStat');
+    const sbStatList = document.getElementById('sbStatList');
+
+    if(stats.length > 0){
+        sbStatBox.classList.remove('hidden');
+        sbStatList.innerHTML = stats.map(s => 
+            `<div style="font-weight:600; margin-bottom:5px;">${s.txt.replace(' - STAT', '')} ${s.status === 'Pending Verification' ? '(Unverified)' : ''}</div>`
+        ).join('');
+    } else {
+        sbStatBox.classList.add('hidden');
+    }
+
+    // Global Alert for STAT orders on assignments page
+    const allPendingStats = state.assignments.some(p => p.orders.some(o => (o.status === 'Pending' && o.txt.includes('STAT')) || (o.cat === 'Medication' && o.status === 'Pending Verification')));
+    document.getElementById('globalStatAlert').style.display = allPendingStats ? 'flex' : 'none';
+}
+
+function ackAllStats(){
+    state.assignments.forEach(p => {
+        p.orders = p.orders.map(o => {
+            if(o.status === 'Pending' && o.txt.includes('STAT')){
+                // Log to flowsheet
+                if(!state.flowsheets[p.name]) state.flowsheets[p.name] = [];
+                state.flowsheets[p.name].push({ time: new Date().toISOString(), cat: "Order Management", val: `Acknowledged STAT order: ${o.txt}`, recordedBy: CURRENT_NURSE, status: 'completed' });
+                return {...o, status: 'Completed'};
+            }
+            return o;
+        });
+    });
+    saveState();
+    renderAssignments();
+    renderStatSidebar();
+}
+
+function createStatOrder(){
+    if(!currentPt) return alert("Open chart first.");
+    const newOrder = {
+        id: Date.now(),
+        cat: 'Labs',
+        txt: 'Troponin - STAT',
+        status: 'Pending',
+        ordered: 'Dr. C. Cuddy',
+        time: new Date().toISOString(),
+        reviewDate: new Date(Date.now() + 86400000*7).toISOString()
+    };
+    currentPt.orders.push(newOrder);
+    currentPt.newOrders = true; // Set new order flag to trigger stat-flash
+    saveState();
+    renderStatSidebar();
+    alert("New STAT order created for Troponin.");
+    if(currentTab === 'orders') renderTab('orders');
+    if(currentTab === 'labs') renderTab('labs');
+}
+
+function renderAssignments(){
+    const grid = document.getElementById('assignmentGrid');
+    grid.innerHTML = '';
+    
+    // Check if assignments array is empty and show a message
+    if (state.assignments.length === 0) {
+        grid.innerHTML = '<div class="card"><div class="meta">No patients assigned for this shift. Add patients from the directory.</div></div>';
+        document.getElementById('globalStatAlert').style.display = 'none';
+        return;
+    }
+    
+    state.assignments.forEach(p => {
+        const pStats = p.orders.filter(o => (o.status === 'Pending' && o.txt.includes('STAT')) || (o.cat === 'Medication' && o.status === 'Pending Verification'));
+        const card = document.createElement('div');
+        card.className = `assigned-card ${pStats.length ? 'stat-flash' : ''}`;
+        if(pStats.length) card.style.borderColor = 'var(--danger)';
+
+        let indicators = '';
+        if(p.newOrders) indicators += `<div class="badge-new" style="margin-right:5px;">New Orders</div>`;
+        if(pStats.length) indicators += `<div class="badge" style="background:var(--danger); margin-right:5px;">ALERT</div>`;
+        
+        // NEW: Check if accessed within the last 1 minute (60,000 milliseconds)
+        const lastAccessTime = p.lastAccessed ? new Date(p.lastAccessed).getTime() : 0;
+        const now = new Date().getTime();
+        const recentlyAccessed = (now - lastAccessTime) < 60000 && lastAccessTime !== 0;
+        if (recentlyAccessed) {
+            indicators += `<div class="small-flag flag-accessed">Recently Accessed</div>`;
+        }
+
+        card.innerHTML = `
+            <div class="top-row">
+                <div><strong>${p.name}</strong><br><span class="meta">Rm ${p.room}</span></div>
+                <button class="small-flag" onclick="openChart(${p.id})">Open Chart</button>
+            </div>
+            <div style="margin-bottom:8px; display:flex; gap:5px; align-items:center;">
+                <span class="small-flag ${p.codeStatus.includes('DNR') ? 'flag-dnr' : 'small-flag'}" style="font-size:11px;">${p.codeStatus}</span>
+                ${indicators}
+            </div>
+            <div class="vitals-grid">
+                <div>HR: <b id="v_hr_${p.id}">${p.observations.hr}</b></div>
+                <div>BP: <b id="v_bp_${p.id}">${p.observations.bp}</b></div>
+                <div>O2: <b id="v_o2_${p.id}">${p.observations.spo2}%</b></div>
+                <div>RR: <b id="v_rr_${p.id}">${p.observations.rr}</b></div>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+function clearAssignments(){
+    if(!state.assignments.length) return;
+    if(confirm("Move current patients to history and clear list?")){
+        state.history.push(...state.assignments);
+        state.assignments = [];
+        saveState();
+        renderAssignments();
+        renderHistoryList();
+    }
+}
+
+function toggleHistory(){
+    document.getElementById('historySection').classList.toggle('hidden');
+    renderHistoryList();
+}
+
+function renderHistoryList(){
+    const container = document.getElementById('historyList');
+    if(state.history.length === 0){
+        container.innerHTML = 'No history yet.';
+        return;
+    }
+    
+    let html = '';
+    state.history.forEach(p => {
+        const timeStr = p.lastAccessed ? new Date(p.lastAccessed).toLocaleString() : 'N/A';
+        html += `<div style="padding:8px 0; border-bottom:1px dashed #eee;">
+            <strong style="color:var(--muted);">${p.name}</strong> (Rm ${p.room}, ${p.unit})<br>
+            <span class="meta">Last Accessed: ${timeStr}</span>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+/* --- Vitals Simulation --- */
+function simVitals(){
+    state.assignments.forEach(p => { 
+        // Simple random vitals fluctuation
+        if(p.observations) p.observations.hr += Math.floor(Math.random()*5)-2; 
+        if(p.observations) p.observations.hr = Math.max(40, Math.min(130, p.observations.hr)); // Keep HR in range
+    });
+    if(currentPt && !document.getElementById('pageChart').classList.contains('hidden')) updateChartVitals();
+    renderAssignments(); // Re-render grid to update vitals
+}
+
+function updateChartVitals(){
+    document.getElementById('sbHR').innerText = currentPt.observations.hr;
+    document.getElementById('sbBP').innerText = currentPt.observations.bp;
+    document.getElementById('sbO2').innerText = currentPt.observations.spo2 + '%';
+    document.getElementById('sbRR').innerText = currentPt.observations.rr;
+    
+    // Check if in med modal and update vitals there too
+    if(document.getElementById('medModal').style.display === 'grid'){
+         document.getElementById('modalHR').innerText = currentPt.observations.hr;
+         document.getElementById('modalBP').innerText = currentPt.observations.bp;
+         document.getElementById('modalO2').innerText = currentPt.observations.spo2 + '%';
+         document.getElementById('modalRR').innerText = currentPt.observations.rr;
+         
+         // Re-check med scan if a med is scanned and visible, to update alert status
+         if(!document.getElementById('scanResult').classList.contains('hidden')){
+             checkMedScan(document.getElementById('scanInput').value);
+         }
+    }
+}
+
+/* --- Tab Rendering --- */
+function renderTab(tab){
+    currentTab = tab;
+    document.querySelectorAll('.tabs-nav .tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.innerText.toLowerCase().includes(tab));
+    });
+
+    const content = document.getElementById('tabContent');
+    content.innerHTML = '';
+
+    switch(tab){
+        case 'orders': renderOrdersTab(content); break;
+        case 'meds': renderMedsTab(content); break;
+        case 'vitals': renderVitalsTab(content); break;
+        case 'assessment': renderAssessmentTab(content); break;
+        case 'history': renderHistoryTab(content); break;
+        case 'labs': renderLabsTab(content); break;
+        case 'iv': renderIVTab(content); break;
+        case 'pharmacy': renderPharmacyTab(content); break;
+        case 'rad': renderRadTab(content); break;
+        case 'discharge': renderDischargeTab(content); break;
+        case 'notes': renderNotesTab(content); break;
+    }
+}
+
+/* --- TABS IMPLEMENTATION --- */
+
+// 1. IV / PUMP TAB
+function renderIVTab(container){
+    const iv = currentPt.fluidTherapy || {access:'PIV', primary:'None', piggyback:'', ysite:'', primaryRate:100};
+    
+    // Simple mock logic: Vancomycin and Zosyn are incompatible
+    const isCompat = !(iv.piggyback.includes('Vancomycin') && iv.ysite.includes('Zosyn'));
+    
+    // Rate Validation: Rate above 300mL/hr
+    const isRateSafe = iv.primaryRate < 300; 
+
+    // Alarm logic: Active if incompatible AND NOT acknowledged, OR if rate is too high AND NOT acknowledged
+    const compatAlarmActive = !isCompat && !currentPt.ivCompatAcknowledged;
+    const rateAlarmActive = !isRateSafe && !currentPt.ivRateAcknowledged;
+    
+    const compatStatusClass = compatAlarmActive ? 'compat-bad flash-danger' : (isCompat ? 'compat-ok' : 'compat-bad');
+    const compatStatusText = isCompat ? '✓ Compatible' : '✕ INCOMPATIBLE DETECTED';
+    
+    let pumpRateText = `PRI: ${iv.primaryRate} mL/hr`;
+    let rateWarning = '';
+    let pumpBoxStyle = '';
+
+    if (!isRateSafe) {
+        pumpRateText = `<span style="color:var(--danger); font-weight:700;">RATE HIGH! ${iv.primaryRate} mL/hr</span>`;
+        rateWarning = rateAlarmActive ? `<div class="compat-indicator compat-bad flash-danger" style="margin-top:5px;">! HIGH RATE ALARMING</div>` : `<div class="meta" style="margin-top:5px;">High rate previously acknowledged.</div>`;
+        if (rateAlarmActive) pumpBoxStyle = 'class="flash-danger"';
+    }
+
+    container.innerHTML = `
+        <h4>IV Access & Infusions</h4>
+        <div style="margin-bottom:12px;" class="meta"><strong>Access:</strong> ${iv.access}</div>
+
+        <div class="iv-pole-container">
+            <div class="iv-channel">
+                <div class="iv-bag" style="height:120px; font-size:12px;">${iv.primary}</div>
+                <div class="iv-line"></div>
+                ${iv.piggyback ? '<div class="iv-line" style="height:20px;"></div>' : ''}
+                <div class="iv-pump-box ${pumpBoxStyle}">
+                    <div style="font-size:11px;">PRIMARY INFUSION</div>
+                    ${pumpRateText}
+                    ${!isRateSafe && rateAlarmActive ? `<button class="small-flag" style="margin-top:8px; width:100%; color:var(--danger); border-color:var(--danger);" onclick="acknowledgeIVRate(${currentPt.id})">Acknowledge Alarm</button>` : ''}
+                    ${rateWarning}
+                </div>
+            </div>
+
+            ${(iv.piggyback || iv.ysite) ? `
+                <div class="iv-channel">
+                    ${iv.piggyback ? `<div class="iv-bag piggy" style="height:80px;">${iv.piggyback}</div>` : `<div style="height:80px;"></div>`}
+                    <div class="iv-line" style="height:40px;"></div>
+                    ${iv.ysite ? `<div class="meta" style="margin-top:5px; font-weight:700;">Y-Site: ${iv.ysite}</div>` : ''}
+                </div>
+            ` : ''}
+        </div>
+
+        <div style="padding:15px; border-radius:8px; border:1px solid #e2e8f0; margin-top:15px; background:#f8fafc;">
+            <h4 style="margin-bottom:5px;">Compatibility Check</h4>
+            ${(iv.piggyback && iv.ysite) ? `<div class="compat-indicator ${compatStatusClass}">${compatStatusText} ${compatAlarmActive ? '(ALARMING)' : ''}</div>` : `<div class="meta" style="margin-top:5px;">Not enough concurrent fluids to check compatibility.</div>` }
+            ${!isCompat && compatAlarmActive ? `<button class="small-flag" style="margin-top:8px; width:100%; color:var(--danger); border-color:var(--danger);" onclick="acknowledgeIVIncompatibility(${currentPt.id})">Acknowledge Alarm</button>` : ''}
+            ${!isCompat && !compatAlarmActive ? `<div class="meta" style="margin-top:5px;">Incompatibility previously acknowledged by nurse.</div>` : ''}
+        </div>
+    `;
+}
+
+function acknowledgeIVIncompatibility(id){
+    const pt = state.assignments.find(p => p.id === id);
+    if(pt){
+        pt.ivCompatAcknowledged = true;
+        // Log to flowsheet
+        if(!state.flowsheets[currentPt.name]) state.flowsheets[currentPt.name] = [];
+        state.flowsheets[currentPt.name].push({ time: new Date().toISOString(), cat: "IV/Pump", val: `Acknowledged IV Incompatibility Alarm: ${pt.fluidTherapy.piggyback} vs ${pt.fluidTherapy.ysite}`, recordedBy: CURRENT_NURSE, status: 'completed' });
+        saveState();
+        renderTab('iv');
+    }
+}
+
+function acknowledgeIVRate(id){
+    const pt = state.assignments.find(p => p.id === id);
+    if(pt){
+        pt.ivRateAcknowledged = true;
+        // Log to flowsheet
+        if(!state.flowsheets[currentPt.name]) state.flowsheets[currentPt.name] = [];
+        state.flowsheets[currentPt.name].push({ time: new Date().toISOString(), cat: "IV/Pump", val: `Acknowledged High Rate Soft Limit Alarm: ${pt.fluidTherapy.primaryRate} mL/hr`, recordedBy: CURRENT_NURSE, status: 'completed' });
+        saveState();
+        renderTab('iv');
+    }
+}
+
+
+// 2. PHARMACY TAB (MODIFIED for Verification)
+function renderPharmacyTab(container){
+    const pInfo = currentPt.pharmacyInfo || {};
+    // Get unverified meds (NEW)
+    const unverifiedMeds = (currentPt.pendingMedOrders || []).filter(m => m.verificationStatus === 'Pending');
+
+    let unverifiedHtml = '';
+    if (unverifiedMeds.length > 0) {
+        unverifiedHtml = `<div class="card flash-danger" style="border-left:4px solid var(--danger); margin-bottom:15px; background:#fef2f2;">
+            <h4>⚠️ PENDING PHARMACY VERIFICATION</h4>
+            <div style="font-size:14px; margin-bottom:10px;">The following orders require review and verification before administration without override:</div>
+            <ul style="list-style:disc; margin-left:20px; padding:0; font-size:14px;">
+                ${unverifiedMeds.map(med => `<li><strong>${med.name} ${med.dose} ${med.route}</strong> - <button class="small-flag" onclick="verifyMedication(${med.orderId})">Verify</button></li>`).join('')}
+            </ul>
+        </div>`;
+    }
+    
+    let approvedHtml = pInfo.approved && pInfo.approved.length > 0 ? pInfo.approved.map(med => `<li>${med}</li>`).join('') : '<li>No approved medications found.</li>';
+    let disapprovedHtml = pInfo.disapproved && pInfo.disapproved.length > 0 ? pInfo.disapproved.map(item => `<li><strong>${item.name}</strong> - Reason: ${item.reason}</li>`).join('') : '<li>No medications disapproved in the last 7 days.</li>';
+
+    container.innerHTML = `
+        ${unverifiedHtml} <h4>Pharmacy Profile</h4>
+        <div style="margin-bottom:15px;" class="meta"><strong>Preferred Pharmacy:</strong> ${pInfo.preferred || 'Not specified'}</div>
+
+        <div class="card" style="border-left:4px solid var(--success);">
+            <h4>Approved Medications (In Formulary)</h4>
+            <ul style="list-style:disc; margin-left:20px; padding:0; font-size:14px;">${approvedHtml}</ul>
+        </div>
+
+        <div class="card" style="border-left:4px solid var(--danger);">
+            <h4>Disapproved / Non-Formulary</h4>
+            <ul style="list-style:disc; margin-left:20px; padding:0; font-size:14px;">${disapprovedHtml}</ul>
+        </div>
+        
+        <div style="margin-top:20px; padding:15px; border:1px solid #e2e8f0; border-radius:8px;">
+            <h4 style="margin-bottom:8px;">Pharmacy Notes</h4>
+            <div class="meta">Please check with Pharmacy (ext 789) for any medication reconciliation discrepancies or substitution requests.</div>
+        </div>
+    `;
+}
+
+// NEW FUNCTION: Verify Medication
+function verifyMedication(orderId){
+    const med = currentPt.pendingMedOrders.find(m => m.orderId === orderId);
+    if(med && confirm(`Are you sure you want to VERIFY ${med.name} ${med.dose} ${med.route}?`)){
+        med.verificationStatus = 'Verified';
+        
+        // Update the main order status from 'Pending Verification' to 'Active'
+        const mainOrder = currentPt.orders.find(o => o.id === orderId);
+        if(mainOrder) mainOrder.status = 'Active';
+
+        // Log
+        if(!state.flowsheets[currentPt.name]) state.flowsheets[currentPt.name] = [];
+        state.flowsheets[currentPt.name].push({ time: new Date().toISOString(), cat: "Pharmacy", val: `${med.name} ${med.dose} verified by Pharmacy.`, recordedBy: CURRENT_NURSE, status: 'completed' });
+
+        saveState();
+        renderTab('pharmacy');
+        // Re-render other tabs that rely on order status
+        if(currentTab === 'orders') renderTab('orders');
+        if(currentTab === 'meds') renderTab('meds');
+    }
+}
+
+
+// 3. LABS TAB (MODIFIED to show pending orders)
+function renderLabsTab(container){
+    const labs = currentPt.labs || {};
+    // Get ordered labs that are pending collection (NEW)
+    const orderedLabs = currentPt.orders.filter(o => o.cat === 'Labs' && o.status === 'Pending');
+
+    let html = `
+        <h4>Ordered Labs - Pending Collection</h4>
+        <div class="card" style="margin-bottom:15px; border-left:4px solid var(--warn);">
+            ${orderedLabs.length === 0 ? '<div class="meta">No pending lab orders.</div>' : `
+                <ul style="list-style:disc; margin-left:20px; padding:0; font-size:14px;">
+                    ${orderedLabs.map(o => {
+                        const isStat = o.txt.includes('STAT');
+                        const style = isStat ? 'color:var(--danger); font-weight:700;' : '';
+                        return `<li style="${style}">${o.txt} (Ordered: ${new Date(o.time).toLocaleDateString()})</li>`;
+                    }).join('')}
+                </ul>
+            `}
+        </div>
+
+        <h4>Recent Lab Results</h4>
+        <div class="lab-grid">`;
+
+    Object.keys(labs).forEach(p => {
+        let rows = labs[p].map(l => {
+            const resultClass = l.abnormal ? 'abnormal' : '';
+            return `<div class="lab-row"><div>${l.test}</div><div class="${resultClass}">${l.result} <span class="meta">(${l.normal})</span></div></div>`;
+        }).join('');
+        html += `<div class="lab-box"> <div class="lab-head">${p}</div> ${rows} </div>`;
+    });
+    html += `</div>`;
+    container.innerHTML = html;
+}
+
+// 4. VITALS TAB
+function renderVitalsTab(container){
+    const h = currentPt.vitalHistory || [];
+    let html = `<h4>Vital Signs History</h4>`;
+    html += `<table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
+        <tr style="background:#f1f5f9; border-bottom:2px solid #e2e8f0;">
+            <th style="padding:10px;">Time</th><th>HR</th><th>BP</th><th>SpO2</th><th>RR</th><th>Temp</th>
+        </tr>`;
+    h.forEach(row => {
+        html += `<tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:10px;">${new Date(row.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
+            <td>${row.hr}</td><td>${row.bp}</td><td>${row.spo2}%</td><td>${row.rr}</td><td>${row.temp}°C</td>
+        </tr>`;
+    });
+    html += `</table>`;
+
+    // Orthostatics Section
+    html += `<div style="margin-top:24px; padding:16px; border:1px solid #e2e8f0; border-radius:8px;">
+        <h4>Orthostatic Vitals</h4>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; font-size:14px;">
+            <div style="background:#f8fafc; padding:10px; border-radius:6px;">
+                <strong>Lying</strong><br>BP: 118/72<br>HR: 72
+            </div>
+            <div style="background:#f8fafc; padding:10px; border-radius:6px;">
+                <strong>Sitting</strong><br>BP: 112/70<br>HR: 78
+            </div>
+            <div style="background:#f8fafc; padding:10px; border-radius:6px;">
+                <strong>Standing</strong><br>BP: 108/68<br>HR: 88
+            </div>
+        </div>
+        <div class="meta" style="margin-top:8px;">Result: Negative for Orthostasis</div>
+    </div>`;
+    container.innerHTML = html;
+}
+
+// 5. ASSESSMENT TAB
+function renderAssessmentTab(container){
+    const assessment = currentPt.assessments || {
+        neuro:'A&O x 3', cv:'WNL', resp:'Clear to auscultation', gi:'Soft, non-tender', skin:'Warm and dry', pain:'4/10 (managed with PRN)'
+    };
+    const safety = currentPt.safety || {fall:false, dysphagia:false, contact:false};
+    
+    let html = `
+        <h4>Last Nursing Assessment</h4>
+        <div class="vitals-grid" style="margin-bottom:15px; grid-template-columns:1fr;">
+            <div><strong>Neurological:</strong> ${assessment.neuro}</div>
+            <div><strong>Cardiovascular:</strong> ${assessment.cv}</div>
+            <div><strong>Respiratory:</strong> ${assessment.resp}</div>
+            <div><strong>Gastrointestinal:</strong> ${assessment.gi}</div>
+            <div><strong>Integumentary:</strong> ${assessment.skin}</div>
+            <div><strong>Pain:</strong> ${assessment.pain}</div>
+        </div>
+        
+        <div class="card" style="margin:0; padding:15px;">
+            <h4 style="margin-bottom:5px;">Safety & Precautions</h4>
+            <div style="font-size:14px; display:flex; gap:15px; flex-wrap:wrap;">
+                <div style="font-weight:700; color:${safety.fall?'var(--danger)':'var(--success)'};">Falls Risk: ${safety.fall?'YES':'No'}</div>
+                <div style="font-weight:700; color:${safety.dysphagia?'var(--danger)':'var(--success)'};">Dysphagia: ${safety.dysphagia?'YES':'No'}</div>
+                <div style="font-weight:700; color:${safety.contact?'var(--danger)':'var(--success)'};">Contact Precautions: ${safety.contact?'YES':'No'}</div>
+            </div>
+        </div>
+
+        <h4 style="margin-top:20px;">IVs, Drains, and Wounds</h4>
+        ${renderFigureListHtml(currentPt.figure)}
+        
+        <div style="margin-top:20px;">
+            <button class="btn-primary" onclick="saveAssessment()">Document Assessment</button>
+        </div>
+    `;
+    container.innerHTML = html;
+}
+
+function saveAssessment(){
+    // In a real app, this would collect data from the form. Here, we just log a timestamped entry.
+    if(!state.flowsheets[currentPt.name]) state.flowsheets[currentPt.name] = [];
+    state.flowsheets[currentPt.name].push({ 
+        time: new Date().toISOString(), 
+        cat: "Documentation", 
+        val: `Physical Assessment documented. (Last BP: ${currentPt.observations.bp})`, 
+        recordedBy: CURRENT_NURSE, 
+        status: 'completed' 
+    });
+    saveState();
+    alert("Assessment saved and logged to flowsheet.");
+    renderTab('assessment');
+}
+
+// 6. RADIOLOGY TAB
+function renderRadTab(container){
+    const imgs = currentPt.imaging || [];
+    let html = `<h4>Radiology & Imaging</h4>`;
+    if(!imgs.length) html += `<div class="meta">No imaging results on file.</div>`;
+    else {
+        imgs.forEach(img => {
+            html += `<div class="card" style="margin-bottom:10px; padding:15px;">
+                <div style="display:flex; justify-content:space-between;">
+                    <strong>${img.modality}</strong>
+                    <span class="meta">${new Date(img.time).toLocaleString()}</span>
+                </div>
+                <div style="margin-top:8px; font-family:monospace; font-size:13px; background:#f8fafc; padding:10px; border-radius:6px;">
+                    IMPRESSION: ${img.result}
+                </div>
+            </div>`;
+        });
+    }
+    container.innerHTML = html;
+}
+
+// 7. ORDERS TAB
+function renderOrdersTab(container){
+    const orders = currentPt.orders || [];
+    let html = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h4>Active Orders</h4>
+            <button class="btn-primary" onclick="openOrderModal()">+ Add New Order</button>
+        </div>`;
+    if(orders.length === 0){
+        html += `<div class="meta">No active orders.</div>`;
+    } else {
+        html += `<table style="width:100%; border-collapse:collapse; font-size:14px;">
+            <tr style="background:#f1f5f9; text-align:left;"><th style="padding:10px;">Category</th><th style="padding:10px;">Order Details</th><th style="padding:10px;">Ordered By / Time</th><th style="padding:10px;">Actions</th></tr>`;
+        orders.forEach(o => {
+            const reviewDue = new Date(o.reviewDate) < new Date();
+            const reviewStyle = reviewDue ? 'color:var(--danger); font-weight:700;' : '';
+            const reviewText = reviewDue ? 'Review Due' : 'Reviewed';
+            const actionBtn = reviewDue ? `<button class="small-flag flag-urgency" onclick="acknowledgeOrderReview(${o.id})">Acknowledge</button>` : `<button class="small-flag" onclick="editOrder(${o.id})">Edit</button>`;
+            const statusStyle = o.status === 'Pending Verification' ? 'color:var(--danger); font-weight:700;' : '';
+
+            html += `<tr style="border-bottom:1px solid #eee;">
+                <td style="padding:10px; font-weight:600; color:var(--accent);">${o.cat}</td>
+                <td style="padding:10px;">${o.txt} <span style="${reviewStyle}">(${reviewText})</span><br><span style="${statusStyle}">${o.status === 'Pending Verification' ? 'Pending Pharmacy Verification' : ''}</span></td>
+                <td style="padding:10px;"><span class="meta">${o.ordered} / ${new Date(o.time).toLocaleDateString()}</span></td>
+                <td style="padding:10px; display:flex; gap:5px;">
+                    ${actionBtn}
+                    <button class="small-x" style="color:var(--danger); border-color:var(--danger);" onclick="deleteOrder(${o.id})">x</button>
+                </td>
+            </tr>`;
+        });
+        html += `</table>`;
+    }
+    container.innerHTML = html;
+}
+
+function acknowledgeOrderReview(orderId){
+    const order = currentPt.orders.find(o => o.id === orderId);
+    if(order){
+        // Extend review date by 7 days
+        order.reviewDate = new Date(Date.now() + (7 * 86400000)).toISOString();
+        // Log to flowsheet
+        if(!state.flowsheets[currentPt.name]) state.flowsheets[currentPt.name] = [];
+        state.flowsheets[currentPt.name].push({ time: new Date().toISOString(), cat: "Order Management", val: `Order Review Acknowledged and extended for 7 days (Order ID: ${orderId})`, recordedBy: CURRENT_NURSE, status: 'completed' });
+        saveState();
+        renderTab('orders');
+    }
+}
+
+// 8. DOCUMENTATION HISTORY TAB
+function renderHistoryTab(container){
+    const flowsheet = state.flowsheets[currentPt.name] || [];
+    // Filter for documentation, procedure, and order management entries
+    const history = flowsheet.filter(f => ['Documentation', 'Procedure', 'Order Management', 'Discharge Planning', 'IV/Pump', 'Medication Admin', 'Pharmacy'].includes(f.cat));
+    
+    container.innerHTML = `<h4>Documentation History & Flowsheet Events</h4>`;
+    if(history.length === 0){
+        container.innerHTML += `<div class="meta">No recorded documentation history yet.</div>`;
+        return;
+    }
+
+    let html = `<table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
+        <tr style="background:#f1f5f9; border-bottom:2px solid #e2e8f0;">
+            <th style="padding:10px;">Time</th>
+            <th style="padding:10px;">Category</th>
+            <th style="padding:10px;">Detail</th>
+            <th style="padding:10px;">Nurse</th>
+        </tr>`;
+
+    // Reverse the history array to show newest first
+    history.slice().reverse().forEach(h => {
+        const timeStr = new Date(h.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        html += `<tr style="border-bottom:1px solid #eee;">
+            <td style="padding:10px; white-space:nowrap;">${timeStr}</td>
+            <td style="padding:10px; font-weight:600; color:var(--purple);">${h.cat}</td>
+            <td style="padding:10px;">${h.val}</td>
+            <td style="padding:10px;"><span class="meta">${h.recordedBy}</span></td>
+        </tr>`;
+    });
+    html += `</table>`;
+    container.innerHTML = html;
+}
+
+// 9. DISCHARGE TAB (MODIFIED to include Home Care Status)
+function renderSelect(id, label, value, options){
+    const optionsHtml = options.map(opt => 
+        `<option value="${opt}" ${value === opt ? 'selected' : ''}>${opt}</option>`
+    ).join('');
+    return `
+        <label style="font-weight:700; font-size:13px; display:block; margin-top:10px;">${label}</label>
+        <select id="dp_${id}" class="input-scan" style="margin:0;">${optionsHtml}</select>
+    `;
+}
+
+function renderDischargeTab(container){
+    const dp = currentPt.dischargePlanning || {};
+    const options = {
+        readiness: ['No', 'Pending Consults', 'Yes (Needs Sign-off)', 'DC Order Signed'],
+        status: ['Acute Care', 'Stable - Continued Care', 'Stable - Ready for Discharge', 'Home'],
+        ot: ['Consult Scheduled', 'Needs Evaluation', 'Complete - No Follow Up', 'Follow Up Required'],
+        iv: ['No', 'PIV out on DC day', 'Long-term Access Ordered'],
+        abx: ['Continue', 'Discontinue', 'Switch to PO'],
+        pain: ['IV PCA', 'PO', 'No Pain Meds'],
+        homeCare: ['No Home Services Needed', 'Home Health Agency (HHA)', 'VNA (Visiting Nurse Association)', 'Private Duty Nursing'] // NEW
+    };
+
+    container.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h4>Discharge Planning Checklist</h4>
+            <button class="btn-primary" onclick="saveDischargePlan()">Save Plan</button>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+            <div class="card" style="margin:0; padding:15px;">
+                <h4 style="margin-bottom:5px;">Patient & Consult Status</h4>
+                ${renderSelect('ptStatus', 'Patient Status', dp.ptStatus, options.status)}
+                ${renderSelect('otStatus', 'OT/PT Status', dp.otStatus, options.ot)}
+                
+                <div style="margin-top:15px; border-top:1px solid #eee; padding-top:15px;">
+                    <h4 style="margin-bottom:5px;">Patient Home Care Status</h4>
+                    ${renderSelect('homeCareStatus', 'Home Care Service', dp.homeCareStatus, options.homeCare)}
+                </div>
+
+                <label style="font-weight:700; font-size:13px; display:block; margin-top:10px; margin-bottom:4px;">Home Health Notes</label>
+                <textarea id="dp_homeHealthNotes" class="input-scan" style="margin:0; min-height:80px;" placeholder="e.g. Needs daily dressing changes, follow up with PCP in 3 days">${dp.homeHealthNotes || ''}</textarea>
+            </div>
+
+            <div class="card" style="margin:0; padding:15px;">
+                <h4 style="margin-bottom:5px;">Medication & IV Plan</h4>
+                ${renderSelect('ivLongTerm', 'IV Access', dp.ivLongTerm, options.iv)}
+                ${renderSelect('antibiotics', 'Antibiotics Plan', dp.antibiotics, options.abx)}
+                ${renderSelect('painManagement', 'Pain Management Plan', dp.painManagement, options.pain)}
+                <div style="margin-top:15px; border-top:1px solid #eee; padding-top:15px;">
+                    <h4 style="color:var(--danger);">Readiness & Equipment</h4>
+                    ${renderSelect('dischargeReady', 'Discharge Readiness', dp.dischargeReady, options.readiness)}
+                    <label style="font-weight:700; font-size:13px; display:block; margin-top:10px; margin-bottom:4px;">Supplies/Equipment Needed</label>
+                    <input id="dp_supplies" class="input-scan" style="margin:0;" value="${dp.supplies || ''}" placeholder="e.g. Walker, wound care supplies"/>
+                </div>
+            </div>
+
+            <div class="card" style="grid-column:1/3; margin:0; padding:15px;">
+                <label style="font-weight:700; font-size:13px; display:block; margin-bottom:4px;">Tubes/Drains Plan</label>
+                <input id="dp_tubeDrainRemoval" class="input-scan" style="margin:0;" value="${dp.tubeDrainRemoval || ''}" placeholder="e.g. Foley out on DC day, JP drain teaching complete"/>
+            </div>
+        </div>
+    `;
+}
+
+function saveDischargePlan(){
+    const ptName = currentPt.name;
+    const dp = {
+        ptStatus: document.getElementById('dp_ptStatus').value,
+        otStatus: document.getElementById('dp_otStatus').value,
+        homeCareStatus: document.getElementById('dp_homeCareStatus').value, // NEW
+        ivLongTerm: document.getElementById('dp_ivLongTerm').value,
+        antibiotics: document.getElementById('dp_antibiotics').value,
+        painManagement: document.getElementById('dp_painManagement').value,
+        supplies: document.getElementById('dp_supplies').value,
+        tubeDrainRemoval: document.getElementById('dp_tubeDrainRemoval').value,
+        dischargeReady: document.getElementById('dp_dischargeReady').value,
+        homeHealthNotes: document.getElementById('dp_homeHealthNotes').value,
+        time: new Date().toISOString()
+    };
+    currentPt.dischargePlanning = dp;
+    // Log to flowsheet
+    if(!state.flowsheets[ptName]) state.flowsheets[ptName] = [];
+    state.flowsheets[ptName].push({ time: new Date().toISOString(), cat: "Discharge Planning", val: `Discharge Plan updated. Readiness: ${dp.dischargeReady}`, recordedBy: CURRENT_NURSE, status: 'completed' });
+    saveState();
+    alert("Discharge Plan saved.");
+    renderTab('discharge');
+}
+
+// 10. MAR TAB (MODIFIED to include unverified meds)
+function renderMedsTab(container){
+    const orders = currentPt.medicationOrders || [];
+    const dueList = currentPt.medicationRequests || [];
+
+    // Combine standard med orders (from seed data) and pending new orders (NEW)
+    const allMedOrders = orders.map(o => ({
+        ...o,
+        name: medDB[o.code] ? medDB[o.code].name : 'Unknown Med',
+        dose: medDB[o.code] ? medDB[o.code].dose : 'N/A',
+        route: medDB[o.code] ? medDB[o.code].route : 'N/A',
+        verificationStatus: o.verificationStatus || 'Verified', 
+        isNew: false
+    }));
+
+    if(currentPt.pendingMedOrders) {
+        allMedOrders.push(...currentPt.pendingMedOrders.map(p => ({
+            ...p,
+            isNew: true
+        })));
+    }
+
+
+    let html = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h4>Medication Administration Record (MAR)</h4>
+            <button class="small-flag" onclick="openMedModal()">Administer Med</button>
+        </div>
+    `;
+    
+    // DUE/SCHEDULED MEDS (Includes new codes)
+    const dueHtml = dueList.map(req => {
+        let med = medDB[req.code];
+        
+        // Check pending list for new med orders
+        if (!med) {
+             const pendingMed = (currentPt.pendingMedOrders || []).find(p => p.code === req.code);
+             if (pendingMed) med = { name: pendingMed.name, dose: pendingMed.dose, route: pendingMed.route, stat: false, freq: 0 };
+        }
+        
+        if (!med) return ''; // Skip if med details not found
+
+        const time = new Date(req.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        const isStat = med.stat || req.status === 'stat';
+        const statusClass = isStat ? 'flag-urgency' : 'small-flag';
+        const statusText = isStat ? 'STAT NOW' : `DUE @ ${time}`;
+
+        const now = new Date();
+        const reqDate = new Date(req.time);
+        const isPastDue = reqDate < now && !isStat;
+
+        if (isPastDue) return ''; 
+
+        return `<div style="display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px dashed #eee;">
+            <div>
+                <strong>${med.name || 'Unknown Med'}</strong>
+                <div class="meta">${med.dose} ${med.route} - ${med.freq ? `Q${med.freq}H` : 'PRN'}</div>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <span class="${statusClass}">${statusText}</span>
+                <button class="btn-primary" style="padding:5px 10px;" onclick="openMedModal('${req.code}')">Scan & Give</button>
+            </div>
+        </div>`;
+    }).join('');
+
+    html += `<div class="card"><h4>Meds Due / STAT</h4>${dueHtml || '<div class="meta">No scheduled or STAT meds currently due.</div>'}</div>`;
+
+
+    // HISTORY/ORDERS LIST (Uses allMedOrders)
+    let orderListHtml = allMedOrders.map(o => {
+        const sched = o.schedule && o.schedule.length > 0 ? `Scheduled: ${o.schedule.map(h => `${h}:00`).join(', ')}` : (o.isNew ? o.frequency : 'PRN');
+        
+        const verificationBadge = o.verificationStatus === 'Pending' ? `<span class="badge" style="background:var(--warn); margin-left:5px;">PENDING VERIFY</span>` : '';
+        const name = o.isNew ? o.name : medDB[o.code].name;
+        const lastAdminTime = 'N/A'; // Simplified as before
+
+        return `<tr style="border-bottom:1px solid #eee;">
+            <td style="padding:10px; font-weight:600;">${name} ${verificationBadge}</td>
+            <td style="padding:10px;">${o.dose} ${o.route}</td>
+            <td style="padding:10px;">${o.frequency}</td>
+            <td style="padding:10px;"><span class="meta">${sched}</span></td>
+            <td style="padding:10px;"><span class="meta">${lastAdminTime}</span></td>
+        </tr>`;
+    }).join('');
+
+    html += `<div class="card" style="margin-top:16px;">
+        <h4>Active Medication Orders</h4>
+        <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
+            <tr style="background:#f1f5f9; border-bottom:2px solid #e2e8f0;">
+                <th style="padding:10px;">Medication</th><th>Dose/Route</th><th>Frequency</th><th>Schedule</th><th>Last Admin</th>
+            </tr>
+            ${orderListHtml || '<tr><td colspan="5" style="padding:10px;" class="meta">No active medication orders.</td></tr>'}
+        </table>
+    </div>`;
+
+    container.innerHTML = html;
+}
+
+// 11. NOTES TAB
+function renderNotesTab(container){
+    const notes = currentPt.notes || '';
+    container.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h4>Shift Notes / SBAR</h4>
+            <button class="btn-primary" onclick="saveNotes()">Save Notes</button>
+        </div>
+        <textarea id="ptNotes" class="input-scan" style="min-height:300px; font-size:14px; margin-top:0;" placeholder="Document patient status, interventions, and changes for handoff (SBAR format recommended).">${notes}</textarea>
+        <div class="meta" style="margin-top:8px;">Last Saved: ${currentPt.notesLastUpdated ? new Date(currentPt.notesLastUpdated).toLocaleString() : 'Never'}</div>
+    `;
+}
+
+function saveNotes(){
+    const notesText = document.getElementById('ptNotes').value;
+    currentPt.notes = notesText;
+    currentPt.notesLastUpdated = new Date().toISOString();
+    // Log to flowsheet
+    if(!state.flowsheets[currentPt.name]) state.flowsheets[currentPt.name] = [];
+    state.flowsheets[currentPt.name].push({ 
+        time: currentPt.notesLastUpdated, 
+        cat: "Documentation", 
+        val: `Shift Notes saved (Length: ${notesText.length} chars)`, 
+        recordedBy: CURRENT_NURSE, 
+        status: 'completed' 
+    });
+    saveState();
+    alert("Notes saved.");
+    renderTab('notes');
+}
+
+
+/* --- Figure Logic --- */
+const figureMap = { 'head': [60, 20], 'neck': [60, 40], 'chest': [60, 60], 'upper_abdomen': [60, 80], 'lower_abdomen': [60, 110], 'left_arm': [28, 80], 'right_arm': [92, 80], 'left_leg': [50, 200], 'right_leg': [70, 200], 'back': [60, 100] };
+
+function openFigureModal(mode){
+    if(!currentPt) return alert("Open chart first.");
+    figureModalMode = mode;
+    document.getElementById('figureType').value = mode;
+    document.getElementById('figureModal').style.display = 'grid';
+}
+
+function closeFigureModal(){
+    document.getElementById('figureModal').style.display = 'none';
+    document.getElementById('figureNotes').value = ''; // Clear notes on close
+    document.getElementById('figureLocation').value = 'head'; // Reset location
+}
+
+function saveFigureItem(){
+    const loc = document.getElementById('figureLocation').value;
+    const notes = document.getElementById('figureNotes').value || '';
+    const item = { id: Date.now(), location: loc, notes };
+
+    if(figureModalMode === 'iv') currentPt.figure.iv.push(item);
+    else if(figureModalMode === 'drain') currentPt.figure.drains.push(item);
+    else if(figureModalMode === 'wound') currentPt.figure.wounds.push(item);
+    
+    // Log figure addition to flowsheet
+    if(!state.flowsheets[currentPt.name]) state.flowsheets[currentPt.name] = [];
+    state.flowsheets[currentPt.name].push({ 
+        time: new Date().toISOString(), 
+        cat: "Procedure", 
+        val: `New ${figureModalMode.toUpperCase()} documented at ${loc} (${notes.substring(0,20)}...)`, 
+        recordedBy: CURRENT_NURSE, 
+        status: 'completed' 
+    });
+
+    saveState();
+    renderFigure();
+    closeFigureModal();
+    // Re-render assessment tab if visible to update the list there
+    if(currentTab === 'assessment' || currentTab === 'history') renderTab(currentTab);
+}
+
+function removeFigureItem(which, id){
+    if(which === 'iv') currentPt.figure.iv = currentPt.figure.iv.filter(x => x.id !== id);
+    if(which === 'drain') currentPt.figure.drains = currentPt.figure.drains.filter(x => x.id !== id);
+    if(which === 'wound') currentPt.figure.wounds = currentPt.figure.wounds.filter(x => x.id !== id);
+    
+    // Log removal to flowsheet
+    if(!state.flowsheets[currentPt.name]) state.flowsheets[currentPt.name] = [];
+    state.flowsheets[currentPt.name].push({ 
+        time: new Date().toISOString(), 
+        cat: "Procedure", 
+        val: `Removed ${which.toUpperCase()} item (ID: ${id})`, 
+        recordedBy: CURRENT_NURSE, 
+        status: 'completed' 
+    });
+
+    saveState();
+    renderFigure();
+    if(currentTab === 'assessment' || currentTab === 'history') renderTab(currentTab);
+}
+
+function renderFigure(){
+    const markers = document.getElementById('markers');
+    markers.innerHTML = '';
+    
+    const allItems = [
+        ...currentPt.figure.iv.map(i => ({...i, type:'iv'})),
+        ...currentPt.figure.drains.map(i => ({...i, type:'drain'})),
+        ...currentPt.figure.wounds.map(i => ({...i, type:'wound'}))
+    ];
+
+    allItems.forEach(item => {
+        const [cx, cy] = figureMap[item.location] || [60, 140]; // Default to abdomen if location unknown
+        const marker = document.createElementNS("http://www.w3.org/2000/svg", 'circle');
+        marker.setAttribute('cx', cx);
+        marker.setAttribute('cy', cy);
+        marker.setAttribute('r', 4);
+        marker.setAttribute('class', `marker ${item.type}`);
+        marker.setAttribute('data-id', item.id);
+        marker.setAttribute('title', `${item.type.toUpperCase()}: ${item.notes}`);
+        markers.appendChild(marker);
+    });
+    
+    // Also update the list in the sidebar and assessment tab
+    document.getElementById('figureList').innerHTML = renderFigureListHtml(currentPt.figure);
+}
+
+function renderFigureListHtml(figureData){
+    let listHtml = '';
+    const allItems = [
+        ...figureData.iv.map(i => ({...i, type:'iv', label:'IV Access'})),
+        ...figureData.drains.map(i => ({...i, type:'drain', label:'Drain/Tube'})),
+        ...figureData.wounds.map(i => ({...i, type:'wound', label:'Wound'}))
+    ];
+
+    if(allItems.length === 0) return '<div class="meta">No access, drains, or wounds documented.</div>';
+
+    allItems.forEach(item => {
+        listHtml += `
+            <div class="figure-item">
+                <div style="font-weight:600; font-size:12px; white-space:nowrap; color:var(--muted); text-transform:uppercase;">${item.label}</div>
+                <div style="flex-grow:1; text-align:right; font-size:13px; line-height:1.2;">
+                    ${item.notes || item.location}<br>
+                    <span class="meta">${item.location}</span>
+                </div>
+                <div class="small-x" onclick="removeFigureItem('${item.type}', ${item.id})">x</div>
+            </div>
+        `;
+    });
+    return listHtml;
+}
+
+
+/* --- Medication Admin Modal --- */
+function openMedModal(code = null){
+    if(!currentPt) return alert("Open chart first.");
+    // Clear previous state
+    document.getElementById('scanInput').value = code || '';
+    document.getElementById('scanResult').classList.add('hidden');
+    document.getElementById('btnAdminister').disabled = true;
+    document.getElementById('overrideButton').style.display = 'none'; // NEW: Hide override button
+    document.getElementById('modalPtName').innerText = currentPt.name;
+    document.getElementById('modalAllergyWarn').innerText = currentPt.allergy ? `ALLERGY: ${currentPt.allergy}` : 'No known allergies.';
+
+    // START: LIVE VITALS IN MODAL
+    document.getElementById('modalHR').innerText = currentPt.observations.hr;
+    document.getElementById('modalBP').innerText = currentPt.observations.bp;
+    document.getElementById('modalO2').innerText = currentPt.observations.spo2 + '%';
+    document.getElementById('modalRR').innerText = currentPt.observations.rr;
+    // END: LIVE VITALS IN MODAL
+
+    // NEW: Hide HR Alert on open
+    document.getElementById('hrAlert').style.display = 'none';
+
+    document.getElementById('medModal').style.display = 'grid';
+    // Auto-check if code is passed from MAR (new feature implementation)
+    if(code) checkMedScan(code);
+}
+
+function closeModal(){
+    document.getElementById('medModal').style.display = 'none';
+}
+
+function checkMedScan(code = document.getElementById('scanInput').value){
+    let res = medDB[code];
+    let medStatus = 'Verified';
+    let medCode = code;
+    
+    // Check if it's a known new medication (Rx-New-...)
+    if (!res && code.startsWith('Rx-New-')) {
+        const pendingMed = (currentPt.pendingMedOrders || []).find(p => p.code === code);
+        if (pendingMed) {
+            // Mock medDB entry for display purposes
+            res = { name: pendingMed.name, dose: pendingMed.dose, route: pendingMed.route, stat: false }; 
+            medStatus = pendingMed.verificationStatus;
+        }
+    }
+
+
+    const hrAlertEl = document.getElementById('hrAlert'); 
+    
+    // 1. Reset Alert state and disable button
+    hrAlertEl.style.display = 'none'; 
+    document.getElementById('btnAdminister').disabled = true;
+    document.getElementById('overrideButton').style.display = 'none'; // NEW: Hide override button
+    hrAlertEl.style.background = 'var(--danger)'; // Reset alert color
+
+    if(res){
+        document.getElementById('scanResult').classList.remove('hidden');
+        document.getElementById('resName').innerText = res.name;
+        document.getElementById('resDose').innerText = res.dose + ' ' + res.route; 
+        document.getElementById('resStat').style.display = res.stat ? 'inline-block' : 'none';
+
+        let canAdminister = true;
+        
+        // Check for Pending Verification (NEW)
+        if(medStatus === 'Pending'){
+             canAdminister = false;
+             hrAlertEl.style.background = 'var(--warn)';
+             hrAlertEl.style.display = 'inline-block';
+             hrAlertEl.innerText = `ALERT: ${res.name} is Pending Pharmacy Verification. Override required to administer.`;
+             document.getElementById('overrideButton').style.display = 'inline-block';
+        }
+
+        // METOPROLOL HR CHECK LOGIC (only if not already disabled)
+        if(canAdminister && medCode === 'Rx-866414'){ 
+            const currentHR = currentPt.observations.hr;
+            if(currentHR < 60){
+                hrAlertEl.style.display = 'inline-block'; 
+                hrAlertEl.innerText = `ALERT: HR is ${currentHR}. Hold Metoprolol per parameter (< 60)!`;
+                hrAlertEl.style.background = 'var(--danger)';
+                canAdminister = false; 
+            }
+        }
+        
+        // Display admin status
+        if(canAdminister) {
+            document.getElementById('btnAdminister').disabled = false;
+        } else {
+            document.getElementById('btnAdminister').disabled = true;
+        }
+
+    } else {
+        document.getElementById('scanResult').classList.add('hidden');
+    }
+}
+
+// NEW FUNCTION: Override Admin
+function overrideAdmin(){
+    const code = document.getElementById('scanInput').value;
+    const med = medDB[code] || (code.startsWith('Rx-New-') ? currentPt.pendingMedOrders.find(p => p.code === code) : null);
+    
+    if(!med) return alert("Invalid med scan for override.");
+    
+    // Check if override is for Pending Verification
+    const pendingMed = (currentPt.pendingMedOrders || []).find(p => p.code === code && p.verificationStatus === 'Pending');
+    
+    if(pendingMed && confirm(`WARNING: ${med.name} is not verified by pharmacy. Do you require a physician's order to override and administer?`)){
+        // Log the override
+        if(!state.flowsheets[currentPt.name]) state.flowsheets[currentPt.name] = [];
+        state.flowsheets[currentPt.name].push({ 
+            time: new Date().toISOString(), 
+            cat: "Medication Admin", 
+            val: `${med.name} ${med.dose} ${med.route} administered with **Pharmacy Verification Override**.`, 
+            recordedBy: CURRENT_NURSE, 
+            status: 'overridden' 
+        });
+        
+        saveState();
+        closeModal();
+        alert(`${med.name} administered via override.`);
+        // Re-render MAR and History to show the administration
+        if(currentTab === 'meds') renderTab('meds');
+        if(currentTab === 'history') renderTab('history');
+    } else {
+        alert("Override cancelled.");
+    }
+}
+
+
+// Auto-Scan logic
+function autoFillScan(){
+    const activeMeds = currentPt.medicationRequests || [];
+    // Prioritize STAT meds
+    let med = activeMeds.find(m => medDB[m.code] && medDB[m.code].stat);
+    if (!med) med = activeMeds.find(m => medDB[m.code]);
+
+    if(med){
+        openMedModal(med.code);
+    } else {
+        alert("No current STAT or DUE medications found to auto-scan.");
+    }
+}
+
+function confirmAdminister(){
+    const code = document.getElementById('scanInput').value;
+    const med = medDB[code] || (code.startsWith('Rx-New-') ? currentPt.pendingMedOrders.find(p => p.code === code && p.verificationStatus === 'Verified') : null);
+
+    if(!med) return alert("Invalid med scan or med is unverified.");
+
+    // Simple administration confirmation
+    if(confirm(`Administer ${med.name} ${med.dose} ${med.route} now?`)){
+        // Log to flowsheet
+        if(!state.flowsheets[currentPt.name]) state.flowsheets[currentPt.name] = [];
+        state.flowsheets[currentPt.name].push({ 
+            time: new Date().toISOString(), 
+            cat: "Medication Admin", 
+            val: `${med.name} ${med.dose} ${med.route} administered.`, 
+            recordedBy: CURRENT_NURSE, 
+            status: 'completed' 
+        });
+
+        // Remove from due list if it's a scheduled med
+        if(!med.stat && med.freq > 0){
+             const index = currentPt.medicationRequests.findIndex(r => r.code === code);
+             if(index > -1) currentPt.medicationRequests.splice(index, 1);
+        }
+
+        saveState();
+        closeModal();
+        alert(`${med.name} administered and charted.`);
+        if(currentTab === 'meds') renderTab('meds');
+        if(currentTab === 'history') renderTab('history');
+    }
+}
+
+
+/* --- Order Modal Logic --- */
+function openOrderModal(orderId = null){
+    // Reset form fields
+    document.getElementById('orderModal').dataset.editId = '';
+    document.getElementById('ordType').value = 'Medication';
+    document.getElementById('ordMedName').value = '';
+    document.getElementById('ordMedDose').value = '';
+    document.getElementById('ordMedRoute').value = 'PO';
+    document.getElementById('ordMedFreq').value = '';
+    document.getElementById('ordLabName').value = '';
+    document.getElementById('ordLabTiming').value = 'Routine - Next AM';
+    document.getElementById('ordLabTimeWrap').classList.add('hidden');
+    document.getElementById('ordVitalName').value = '';
+    document.getElementById('ordVitalFreq').value = 'Q4H';
+    document.getElementById('ordOtherDesc').value = '';
+    updateOrderForm();
+
+    if(orderId !== null){
+        const order = currentPt.orders.find(o => o.id === orderId);
+        if(!order) return alert("Order not found.");
+
+        document.getElementById('orderModal').dataset.editId = orderId;
+        document.getElementById('ordType').value = order.cat;
+        updateOrderForm();
+
+        if(order.cat === 'Medication'){
+            // Simple string parsing: Name Dose Route Frequency
+            const parts = order.txt.split(' ');
+            document.getElementById('ordMedName').value = parts[0];
+            document.getElementById('ordMedDose').value = parts[1];
+            document.getElementById('ordMedRoute').value = parts[2];
+            document.getElementById('ordMedFreq').value = parts[3];
+        } else if (order.cat === 'Vitals') {
+            document.getElementById('ordVitalName').value = order.txt.split(' - ')[0];
+            document.getElementById('ordVitalFreq').value = order.txt.split(' - ')[1];
+        } else if (order.cat === 'Labs') {
+            document.getElementById('ordLabName').value = order.txt.split(' - ')[0]; 
+            // Cannot easily parse timing details for pre-fill, only fill name
+        } else {
+            document.getElementById('ordOtherDesc').value = order.txt;
+        }
+    }
+
+    document.getElementById('orderModal').style.display = 'grid';
+}
+
+function closeOrderModal(){
+    document.getElementById('orderModal').style.display = 'none';
+}
+
+function updateOrderForm(){
+    const type = document.getElementById('ordType').value;
+    document.getElementById('ordFieldsMed').classList.add('hidden');
+    document.getElementById('ordFieldsLab').classList.add('hidden');
+    document.getElementById('ordFieldsVital').classList.add('hidden');
+    document.getElementById('ordFieldsOther').classList.add('hidden');
+
+    if(type === 'Medication') document.getElementById('ordFieldsMed').classList.remove('hidden');
+    else if(type === 'Labs') document.getElementById('ordFieldsLab').classList.remove('hidden');
+    else if(type === 'Vitals') document.getElementById('ordFieldsVital').classList.remove('hidden');
+    else document.getElementById('ordFieldsOther').classList.remove('hidden');
+}
+
+function toggleLabTime(){
+    const val = document.getElementById('ordLabTiming').value;
+    const wrapper = document.getElementById('ordLabTimeWrap');
+    if(val === 'Timed') wrapper.classList.remove('hidden');
+    else wrapper.classList.add('hidden');
+}
+
+function submitNewOrder(){
+    const editId = document.getElementById('orderModal').dataset.editId;
+    const isEdit = !!editId;
+    const orderId = isEdit ? parseInt(editId) : null;
+    const type = document.getElementById('ordType').value;
+    let txt = "";
+
+    if(type === 'Medication'){
+        const name = document.getElementById('ordMedName').value;
+        const dose = document.getElementById('ordMedDose').value;
+        txt = `${name} ${dose} ${document.getElementById('ordMedRoute').value} ${document.getElementById('ordMedFreq').value}`;
+    } else if(type === 'Labs'){
+        const name = document.getElementById('ordLabName').value;
+        const timing = document.getElementById('ordLabTiming').value;
+        txt = `${name} - ${timing}`;
+        if(timing === 'Timed'){
+            txt += ` @ ${document.getElementById('ordLabSpecificTime').value}`;
+        }
+    } else if(type === 'Vitals'){
+        const name = document.getElementById('ordVitalName').value;
+        const freq = document.getElementById('ordVitalFreq').value;
+        txt = `${name} - ${freq}`;
+    } else {
+        txt = document.getElementById('ordOtherDesc').value;
+    }
+
+    const newOrder = {
+        id: isEdit ? orderId : Date.now(),
+        cat: type,
+        txt: txt,
+        status: 'Active', 
+        ordered: CURRENT_NURSE,
+        time: new Date().toISOString(),
+        reviewDate: new Date(Date.now() + 86400000*7).toISOString() // 7-day review
+    };
+
+    // NEW: Medication Verification Workflow
+    if(type === 'Medication'){
+        newOrder.status = 'Pending Verification'; // Set status for the main order list
+        if(!currentPt.pendingMedOrders) currentPt.pendingMedOrders = [];
+        const parts = txt.split(' ');
+        const newMed = {
+            orderId: newOrder.id,
+            name: parts[0] || 'New Med',
+            dose: parts[1] || 'Unknown',
+            route: parts[2] || 'PO',
+            frequency: parts[3] || 'Daily',
+            verificationStatus: 'Pending', // New field for pharmacy check
+            code: `Rx-New-${newOrder.id}` // Mock code for scanning
+        };
+        currentPt.pendingMedOrders.push(newMed);
+        currentPt.newOrders = true; // Flag for assignment view alert
+        
+        // Log this action
+        if(!state.flowsheets[currentPt.name]) state.flowsheets[currentPt.name] = [];
+        state.flowsheets[currentPt.name].push({ time: new Date().toISOString(), cat: "Order Management", val: `New Medication Order for ${newMed.name} sent to Pharmacy for verification.`, recordedBy: CURRENT_NURSE, status: 'pending' });
+    }
+    // END NEW: Medication Verification Workflow
+
+    if(isEdit){
+        const index = currentPt.orders.findIndex(o => o.id === orderId);
+        if(index > -1) currentPt.orders[index] = newOrder;
+        
+        // Log update
+        if(!state.flowsheets[currentPt.name]) state.flowsheets[currentPt.name] = [];
+        state.flowsheets[currentPt.name].push({ time: new Date().toISOString(), cat: "Order Management", val: `Order ID ${orderId} updated: ${newOrder.txt}`, recordedBy: CURRENT_NURSE, status: 'completed' });
+        alert("Order updated.");
+
+    } else {
+        currentPt.orders.push(newOrder);
+        // Log new order
+        if(!state.flowsheets[currentPt.name]) state.flowsheets[currentPt.name] = [];
+        state.flowsheets[currentPt.name].push({ time: new Date().toISOString(), cat: "Order Management", val: `New Order signed: ${newOrder.txt}`, recordedBy: CURRENT_NURSE, status: 'completed' });
+        
+        if(type === 'Labs' && (newOrder.txt.includes('STAT') || newOrder.txt.includes('Timed'))) {
+            newOrder.status = 'Pending';
+        }
+        
+        alert("New Order signed.");
+    }
+    
+    saveState();
+    renderTab('orders');
+    // Re-render other tabs that rely on order status
+    if(currentTab === 'pharmacy') renderTab('pharmacy');
+    if(currentTab === 'labs') renderTab('labs');
+    if(currentTab === 'meds') renderTab('meds');
+    
+    closeOrderModal();
+}
+
+function deleteOrder(orderId){
+    if(confirm("Are you sure you want to discontinue this order? This action cannot be undone.")){
+        const index = currentPt.orders.findIndex(o => o.id === orderId);
+        if(index > -1){
+            const deletedOrder = currentPt.orders[index];
+            currentPt.orders.splice(index, 1);
+            
+            // If it was a pending med order, remove it from the pending list too
+            if(deletedOrder.cat === 'Medication' && deletedOrder.status === 'Pending Verification'){
+                currentPt.pendingMedOrders = currentPt.pendingMedOrders.filter(m => m.orderId !== orderId);
+            }
+
+            // Log discontinuation
+            if(!state.flowsheets[currentPt.name]) state.flowsheets[currentPt.name] = [];
+            state.flowsheets[currentPt.name].push({ time: new Date().toISOString(), cat: "Order Management", val: `Order ID ${orderId} discontinued: ${deletedOrder.txt}`, recordedBy: CURRENT_NURSE, status: 'completed' });
+
+            saveState();
+            renderTab('orders');
+            // Re-render other tabs that rely on order status
+            if(currentTab === 'pharmacy') renderTab('pharmacy');
+            if(currentTab === 'labs') renderTab('labs');
+            if(currentTab === 'meds') renderTab('meds');
+        } else {
+            alert("Order not found.");
+        }
+    }
+}
+
+function editOrder(orderId){
+    openOrderModal(orderId);
+}
+
+/* --- Storage/Persistence --- */
+document.getElementById('btnPersist').onclick = () => {
+    if(localStorage.getItem(STORAGE_KEY)){
+        localStorage.removeItem(STORAGE_KEY);
+        document.getElementById('btnPersist').innerText = "Storage: OFF";
+        alert("Storage cleared. Refresh to reset.");
+    } else {
+        saveState();
+        document.getElementById('btnPersist').innerText = "Storage: ON";
+    }
+}
+
+function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+/* Robust LoadState that patches missing data structures and bumps the storage key */
+function loadState(){ 
+    const s = localStorage.getItem(STORAGE_KEY); 
+    if(s) { 
+        state = JSON.parse(s); 
+        // Define a patch function for patient objects
+        const patch = (p) => {
+            if(!p.figure) p.figure = {iv:[],drains:[],wounds:[]};
+            if(!p.figure.iv) p.figure.iv = [];
+            if(!p.figure.drains) p.figure.drains = [];
+            if(!p.figure.wounds) p.figure.wounds = [];
+            if(!p.orders) p.orders = [];
+            if(!p.safety) p.safety = {fall:false,dysphagia:false,contact:false};
+            if(!p.fluidTherapy) p.fluidTherapy = {};
+            if(p.fluidTherapy.primaryRate === undefined) p.fluidTherapy.primaryRate = 100;
+            if(p.ivCompatAcknowledged === undefined) p.ivCompatAcknowledged = false;
+            if(p.ivRateAcknowledged === undefined) p.ivRateAcknowledged = false;
+            if(p.lastAccessed === undefined) p.lastAccessed = null;
+            if(!p.pharmacyInfo) p.pharmacyInfo = {approved:[], disapproved:[]};
+            if(!p.medicationOrders) p.medicationOrders = [];
+            if(!p.medicationRequests) p.medicationRequests = [];
+            if(!p.dischargePlanning) p.dischargePlanning = {};
+            if(p.dischargePlanning && p.dischargePlanning.homeCareStatus === undefined) p.dischargePlanning.homeCareStatus = 'No Home Services Needed'; // NEW patch
+            if(!p.pendingMedOrders) p.pendingMedOrders = []; // NEW patch
+            return p;
+        };
+        
+        // Patch both the directory list and the assignment list
+        state.patients = (state.patients||[]).map(patch);
+        state.assignments = (state.assignments||[]).map(patch);
+
+        // Ensure flowsheets exists at top level state
+        if(!state.flowsheets) state.flowsheets = {};
+
+        document.getElementById('btnPersist').innerText = "Storage: ON";
+    } else {
+        document.getElementById('btnPersist').innerText = "Storage: OFF";
+    }
+}
+</script>
+</body>
+</html>
